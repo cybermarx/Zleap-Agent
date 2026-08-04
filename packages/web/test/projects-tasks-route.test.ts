@@ -1,5 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET as BROWSE_PROJECTS } from '../app/api/projects/browse/route';
@@ -126,6 +126,48 @@ describe('/api/projects route actor contract', () => {
     const deleted = await DELETE_PROJECT(adminRequest('/api/projects', 'DELETE', { id: 'demo' }));
     await expectStatus(deleted, 200);
     expect(projectStoreMock.remove).toHaveBeenCalledWith('demo');
+  });
+
+  it('accepts non-HOME absolute paths for POST and PATCH', async () => {
+    const tmp = await mkdtemp(join(tmpdir(), 'zleap-nonhome-'));
+    try {
+      expect(tmp.startsWith(homedir())).toBe(false);
+
+      projectStoreMock.create.mockResolvedValue({
+        id: 'demo',
+        name: 'Demo',
+        path: tmp,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const created = await POST_PROJECT(adminRequest('/api/projects', 'POST', { id: 'demo', name: 'Demo', path: tmp }));
+      await expectStatus(created, 201);
+      expect(projectStoreMock.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'demo', path: tmp }));
+
+      projectStoreMock.update.mockResolvedValue({
+        id: 'demo',
+        name: 'Demo',
+        path: tmp,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const patched = await PATCH_PROJECT(adminRequest('/api/projects', 'PATCH', { id: 'demo', path: tmp }));
+      await expectStatus(patched, 200);
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('exposes browse roots including the home directory', async () => {
+    const res = await BROWSE_PROJECTS(actorRequest('/api/projects/browse', 'GET'));
+    await expectStatus(res, 200);
+
+    const body = await res.json();
+    expect(Array.isArray(body.roots)).toBe(true);
+    expect(body.roots.length).toBeGreaterThan(0);
+    expect(body.roots.some((r: { name: string; path: string }) => r.path === homedir())).toBe(true);
   });
 
 });

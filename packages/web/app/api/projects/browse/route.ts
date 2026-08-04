@@ -1,12 +1,12 @@
 import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isActorResponse, requireHttpActor } from '../../../../lib/server/actor';
-import { browseDirectories, DEFAULT_PROJECTS_ROOT, defaultSkillsRoot } from '../../../../lib/server/projectPaths';
+import { browseDirectories, DEFAULT_PROJECTS_ROOT, defaultSkillsRoot, listProjectRoots } from '../../../../lib/server/projectPaths';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** List child directories for the project folder picker (server-side, home-scoped). */
+/** List child directories for the project folder picker (server-side, any absolute path). */
 export async function GET(req: Request): Promise<Response> {
   const actor = requireHttpActor(req);
   if (isActorResponse(actor)) return actor;
@@ -19,8 +19,8 @@ export async function GET(req: Request): Promise<Response> {
     if (preset === 'skills' && !url.searchParams.has('path')) {
       await mkdir(presetPath, { recursive: true });
     }
-    const result = await browseDirectories(path);
-    return Response.json({ root: DEFAULT_PROJECTS_ROOT, ...result });
+    const [result, roots] = await Promise.all([browseDirectories(path), listProjectRoots()]);
+    return Response.json({ root: DEFAULT_PROJECTS_ROOT, ...result, roots });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 });
   }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Bot, Boxes, Folder, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Bot, Boxes, Folder, FolderOpen, Save, Trash2 } from 'lucide-react';
 import { DEFAULT_AVATAR_ID } from '@zleap/core';
 import { postJson, patchJson, deleteJson } from '@/lib/api';
 import { llmModels, modelDisplayLabel } from '@/lib/models';
@@ -12,6 +12,7 @@ import { DEFAULT_SPACE_ACCENT, DEFAULT_SPACE_ICON, resolveSpaceIcon } from '@/li
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog';
 import { Input } from '@/components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
@@ -30,6 +31,7 @@ import { AvatarThemePicker, type AvatarThemePickerHandle } from './AvatarThemePi
 import { SpaceThemePicker } from './SpaceThemePicker';
 import { ToolTreeSelect } from './ToolTreeSelect';
 import { ManageField } from './manage-ui';
+import { ProjectFolderPicker } from './ProjectFolderPicker';
 
 export type EditKind = 'space' | 'avatar' | 'project';
 
@@ -489,6 +491,7 @@ export function ProjectEditPage({ id, resources, onChanged, onBack }: EditProps)
   const [path, setPath] = useState('');
   const [note, setNote] = useState('');
   const [spec, setSpec] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [emoji, setEmoji] = useState<string | undefined>();
   const [emojiDraft, setEmojiDraft] = useState('');
   const [accent, setAccent] = useState(DEFAULT_AVATAR_ACCENT);
@@ -613,7 +616,21 @@ export function ProjectEditPage({ id, resources, onChanged, onBack }: EditProps)
           onAccentChange={setAccent}
         />
         <ManageField label={t('project.path')}>
-          <Input value={path} onChange={(e) => setPath(e.target.value)} className="font-mono text-xs" />
+          <InputGroup className="h-9 font-mono text-xs">
+            <InputGroupInput
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                title={t('project.browse')}
+                aria-label={t('project.browse')}
+                onClick={() => setPickerOpen(true)}
+              >
+                <FolderOpen className="size-4" />
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
         </ManageField>
         <ManageField label={t('project.note')}>
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('project.notePlaceholder')} />
@@ -627,6 +644,12 @@ export function ProjectEditPage({ id, resources, onChanged, onBack }: EditProps)
           />
         </ManageField>
       </div>
+      <ProjectFolderPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        initialPath={path || project.path}
+        onSelect={(p) => setPath(p)}
+      />
     </EditShell>
   );
 }

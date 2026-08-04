@@ -1,22 +1,15 @@
 import { readdir, stat } from 'node:fs/promises';
-import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { homedir, userInfo } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 
 export const DEFAULT_PROJECTS_ROOT = join(homedir(), '.zleap', 'project');
-
-const HOME = resolve(homedir());
 
 export function defaultSkillsRoot(): string {
   return process.env.ZLEAP_WEB_SKILLS_ROOT ?? join(homedir(), 'Documents', 'Zleap', 'skills');
 }
 
 export function resolveBrowsePath(input?: string): string {
-  const raw = input?.trim() || DEFAULT_PROJECTS_ROOT;
-  const resolved = resolve(raw);
-  if (!resolved.startsWith(HOME)) {
-    throw new Error('path_not_allowed');
-  }
-  return resolved;
+  return resolve(input?.trim() || DEFAULT_PROJECTS_ROOT);
 }
 
 export type BrowseEntry = { name: string; path: string };
@@ -33,7 +26,6 @@ export async function browseDirectories(inputPath?: string): Promise<{
   }
 
   const parent = dirname(current);
-  const parentResolved = resolve(parent);
   const entries = await readdir(current, { withFileTypes: true });
   const dirs = entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
@@ -42,7 +34,47 @@ export async function browseDirectories(inputPath?: string): Promise<{
 
   return {
     path: current,
-    parent: parentResolved.startsWith(HOME) && parentResolved !== current ? parentResolved : null,
+    parent: parent !== current ? parent : null,
     entries: dirs,
   };
+}
+
+export async function listProjectRoots(): Promise<BrowseEntry[]> {
+  const roots: BrowseEntry[] = [{ name: basename(homedir()), path: homedir() }];
+
+  if (process.platform === 'win32') {
+    for (const letter of 'CDEFGHIJKLMNOPQRSTUVWXYZ') {
+      const drivePath = `${letter}:\\`;
+      try {
+        const info = await stat(drivePath);
+        if (info.isDirectory()) {
+          roots.push({ name: `${letter}:`, path: drivePath });
+        }
+      } catch {
+        // drive does not exist or no access; skip
+      }
+    }
+  } else {
+    roots.push({ name: '/', path: '/' });
+    const mountDirs = ['/Volumes', '/mnt', `/media/${userInfo().username}`];
+    for (const mountDir of mountDirs) {
+      try {
+        const entries = await readdir(mountDir, { withFileTypes: true });
+        for (const e of entries) {
+          if (e.isDirectory()) {
+            roots.push({ name: e.name, path: join(mountDir, e.name) });
+          }
+        }
+      } catch {
+        // mount dir does not exist or no access; skip
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  return roots.filter((r) => {
+    if (seen.has(r.path)) return false;
+    seen.add(r.path);
+    return true;
+  });
 }

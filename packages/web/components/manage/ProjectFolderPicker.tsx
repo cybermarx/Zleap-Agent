@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, Folder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { webApiFetch } from '@/lib/api';
 import {
   Dialog,
@@ -20,6 +21,7 @@ type BrowseResult = {
   path: string;
   parent: string | null;
   entries: BrowseEntry[];
+  roots?: BrowseEntry[];
 };
 
 type ProjectFolderPickerProps = {
@@ -36,6 +38,7 @@ export function ProjectFolderPicker({ open, onOpenChange, initialPath, defaultPr
   const [loading, setLoading] = useState(false);
   const [browse, setBrowse] = useState<BrowseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [address, setAddress] = useState('');
 
   const load = useCallback(async (path?: string) => {
     setLoading(true);
@@ -64,6 +67,10 @@ export function ProjectFolderPicker({ open, onOpenChange, initialPath, defaultPr
     void load(initialPath);
   }, [open, initialPath, load]);
 
+  useEffect(() => {
+    if (browse?.path) setAddress(browse.path);
+  }, [browse?.path]);
+
   const confirm = () => {
     if (!browse?.path) return;
     onSelect(browse.path);
@@ -77,6 +84,38 @@ export function ProjectFolderPicker({ open, onOpenChange, initialPath, defaultPr
           <DialogTitle>{t('project.selectFolder')}</DialogTitle>
           <DialogDescription className="truncate font-mono text-xs">{browse?.path ?? '…'}</DialogDescription>
         </DialogHeader>
+
+        {browse?.roots?.length ? (
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-xs text-muted-foreground">{t('project.quickAccess')}</span>
+            {browse.roots.map((root) => (
+              <Button
+                key={root.path}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                onClick={() => load(root.path)}
+              >
+                {root.name}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+
+        <Input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const trimmed = address.trim();
+              if (trimmed) load(trimmed);
+            }
+          }}
+          className="font-mono text-xs"
+          placeholder={browse?.path ?? ''}
+        />
 
         <div className="flex items-center gap-2">
           <Button

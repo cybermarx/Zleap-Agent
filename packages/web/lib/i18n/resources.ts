@@ -9,6 +9,7 @@ export const resources = {
         openSidebar: '打开侧边栏',
         toggleConsole: '切换工作台',
         create: '创建',
+        add: '添加',
         save: '保存',
         saveChanges: '保存',
         cancel: '取消',
@@ -711,6 +712,8 @@ export const resources = {
       },
       project: {
         new: '新建项目',
+        add: '添加项目',
+        quickAccess: '快速跳转',
         editTitle: '编辑项目',
         newDesc: '选择或填写项目文件夹，项目名会直接使用文件夹名称。',
         pathHint: '点右侧图标选择文件夹；也可以直接填写路径，项目名会使用路径最后一级。',
@@ -841,6 +844,7 @@ export const resources = {
         openSidebar: 'Open sidebar',
         toggleConsole: 'Toggle workspace',
         create: 'Create',
+        add: 'Add',
         save: 'Save',
         saveChanges: 'Save',
         cancel: 'Cancel',
@@ -1543,6 +1547,8 @@ export const resources = {
       },
       project: {
         new: 'New Project',
+        add: 'Add Project',
+        quickAccess: 'Quick access',
         editTitle: 'Edit Project',
         newDesc: 'Choose or enter a project folder. The project name uses the folder name.',
         pathHint: 'Use the folder button or enter a path directly. The project name uses the last path segment.',
