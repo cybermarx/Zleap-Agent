@@ -97,6 +97,7 @@ export function ProjectDialog({ open, onOpenChange, onSaved }: ProjectDialogProp
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         initialPath={values.path.trim() || homeDir || projectsRoot}
+        allowCreateFolder
         onSelect={(selected) => patch({ path: selected })}
       />
     </>

@@ -12,6 +12,27 @@ export function resolveBrowsePath(input?: string): string {
   return resolve(input?.trim() || DEFAULT_PROJECTS_ROOT);
 }
 
+const WINDOWS_INVALID_CHARS = /[<>:"|?*]/;
+const WINDOWS_RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+
+export function resolveChildDirectory(parentInput: string, nameInput: string): string {
+  const name = nameInput.trim();
+  if (
+    !name ||
+    name === '.' ||
+    name === '..' ||
+    /[\\/\u0000-\u001f]/.test(name) ||
+    (process.platform === 'win32' && (
+      WINDOWS_INVALID_CHARS.test(name) ||
+      /[. ]$/.test(name) ||
+      WINDOWS_RESERVED_NAME.test(name)
+    ))
+  ) {
+    throw new Error('invalid_folder_name');
+  }
+  return join(resolveBrowsePath(parentInput), name);
+}
+
 export type BrowseEntry = { name: string; path: string };
 
 export async function browseDirectories(inputPath?: string): Promise<{
