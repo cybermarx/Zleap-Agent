@@ -230,9 +230,16 @@ Zleap-Agent 正在快速开发中，近期仍会持续变化的部分包括：
 
 加入 Zleap 社区，通过 Discord 或微信与维护者和其他用户交流。
 
-| Discord | 微信 |
-| --- | --- |
-| [![Zleap Discord 社区二维码](./assets/discord-community-qr.jpg)](./assets/discord-community-qr.jpg) | [![Zleap 微信社区二维码](./assets/wechat-community-qr.png)](./assets/wechat-community-qr.png) |
+<table align="center">
+  <tr>
+    <th>Discord</th>
+    <th>微信</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/discord-community-qr.jpg" alt="Zleap Discord 社区二维码" width="220" /></td>
+    <td align="center"><img src="./assets/wechat-community-qr.png" alt="Zleap 微信社区二维码" width="220" /></td>
+  </tr>
+</table>
 
 ## License
 

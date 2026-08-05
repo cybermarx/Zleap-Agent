@@ -249,9 +249,16 @@ Feedback, issues, and focused contributions are welcome.
 
 Join the Zleap community on Discord or WeChat to connect with maintainers and other users.
 
-| Discord | WeChat |
-| --- | --- |
-| [![Zleap Discord community QR code](./assets/discord-community-qr.jpg)](./assets/discord-community-qr.jpg) | [![Zleap WeChat community QR code](./assets/wechat-community-qr.png)](./assets/wechat-community-qr.png) |
+<table align="center">
+  <tr>
+    <th>Discord</th>
+    <th>WeChat</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/discord-community-qr.jpg" alt="Zleap Discord community QR code" width="220" /></td>
+    <td align="center"><img src="./assets/wechat-community-qr.png" alt="Zleap WeChat community QR code" width="220" /></td>
+  </tr>
+</table>
 
 ## License
 
