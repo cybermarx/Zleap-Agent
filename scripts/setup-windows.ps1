@@ -1,5 +1,6 @@
 param(
-  [switch]$NoStart
+  [switch]$NoStart,
+  [switch]$ForceDocker
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,6 +21,36 @@ function Refresh-Path {
     "$env:APPDATA\npm"
   )
   $env:Path = ($env:Path + ";" + ($extra -join ";"))
+}
+
+function Database-Configured {
+  if ($env:ZLEAP_DATABASE_URL -or $env:DATABASE_URL) { return $true }
+
+  $envFiles = @(
+    (Join-Path (Get-Location) ".env.local"),
+    (Join-Path (Get-Location) ".env"),
+    (Join-Path $env:USERPROFILE ".zleap\.env")
+  )
+  foreach ($file in $envFiles) {
+    if ((Test-Path $file) -and (Select-String -Path $file -Pattern '^\s*(ZLEAP_DATABASE_URL|DATABASE_URL)\s*=\s*\S' -Quiet)) {
+      return $true
+    }
+  }
+  return $false
+}
+
+function Is-VirtualMachine {
+  try {
+    $computer = Get-CimInstance -ClassName Win32_ComputerSystem
+    $manufacturer = [string]$computer.Manufacturer
+    $model = [string]$computer.Model
+    return (
+      ($model -match "Virtual Machine|VMware|VirtualBox|KVM|Xen|QEMU") -or
+      (($manufacturer -match "Microsoft Corporation") -and ($model -match "Virtual"))
+    )
+  } catch {
+    return $false
+  }
 }
 
 function Node-Ok {
@@ -63,10 +94,18 @@ function Ensure-Pnpm {
 function Docker-Ready {
   try {
     docker compose version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
     docker info *> $null
-    return $true
+    return $LASTEXITCODE -eq 0
   } catch {
     return $false
+  }
+}
+
+function Start-Postgres {
+  docker compose up -d postgres
+  if ($LASTEXITCODE -ne 0) {
+    throw "Docker is available, but PostgreSQL could not be started. Check Docker Desktop and the compose output, or configure ZLEAP_DATABASE_URL with a reachable PostgreSQL + pgvector database."
   }
 }
 
@@ -91,7 +130,7 @@ function Ensure-Docker {
     Start-Process $dockerDesktop
   }
   if (-not (Wait-Docker)) {
-    throw "Docker Desktop is installed but not running yet. Open Docker Desktop, finish its first-run setup, then rerun this script."
+    throw "Docker Desktop did not become ready. Start Docker Desktop, enable nested virtualization if this is a VM, or configure ZLEAP_DATABASE_URL with a reachable PostgreSQL + pgvector database."
   }
 }
 
@@ -99,9 +138,16 @@ Ensure-Node
 Ensure-Pnpm
 pnpm install
 
-if (-not $env:ZLEAP_DATABASE_URL -and -not $env:DATABASE_URL) {
-  Ensure-Docker
-  docker compose up -d postgres
+if (-not (Database-Configured)) {
+  Refresh-Path
+  if (Docker-Ready) {
+    Start-Postgres
+  } elseif ((Is-VirtualMachine) -and -not $ForceDocker) {
+    throw "No database is configured and this Windows environment appears to be a virtual machine. Set ZLEAP_DATABASE_URL to a reachable PostgreSQL + pgvector database, or rerun with -ForceDocker if nested virtualization is enabled."
+  } else {
+    Ensure-Docker
+    Start-Postgres
+  }
 }
 
 if (-not $NoStart) {
@@ -114,5 +160,9 @@ Write-Host "Setup complete."
 Write-Host "Start WebUI with:"
 Write-Host "  pnpm dev:web"
 Write-Host ""
-Write-Host "Default local database:"
-Write-Host "  ZLEAP_DATABASE_URL=postgres://zleap:zleap@127.0.0.1:5433/zleap"
+if (Database-Configured) {
+  Write-Host "Database: using the configured PostgreSQL connection."
+} else {
+  Write-Host "Default local database:"
+  Write-Host "  ZLEAP_DATABASE_URL=postgres://zleap:zleap@127.0.0.1:5433/zleap"
+}

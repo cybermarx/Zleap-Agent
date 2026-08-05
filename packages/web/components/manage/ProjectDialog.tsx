@@ -58,13 +58,13 @@ export function ProjectDialog({ open, onOpenChange, onSaved }: ProjectDialogProp
       <ManageDialog
         open={open}
         onOpenChange={onOpenChange}
-        title={t('project.new')}
+        title={t('project.add')}
         description={t('project.newDesc')}
         footer={
           <ManageDialogFooterActions
             onCancel={() => onOpenChange(false)}
             onConfirm={() => void submit()}
-            confirmLabel={t('common.create')}
+            confirmLabel={t('common.add')}
             busy={busy}
           />
         }
@@ -97,6 +97,7 @@ export function ProjectDialog({ open, onOpenChange, onSaved }: ProjectDialogProp
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         initialPath={values.path.trim() || homeDir || projectsRoot}
+        allowCreateFolder
         onSelect={(selected) => patch({ path: selected })}
       />
     </>

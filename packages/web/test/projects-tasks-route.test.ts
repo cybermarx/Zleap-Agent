@@ -1,14 +1,15 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GET as BROWSE_PROJECTS } from '../app/api/projects/browse/route';
+import { GET as BROWSE_PROJECTS, POST as CREATE_PROJECT_FOLDER } from '../app/api/projects/browse/route';
 import { GET as GET_PROJECT_DEFAULTS } from '../app/api/projects/defaults/route';
 import { DELETE as DELETE_PROJECT, GET as GET_PROJECTS, PATCH as PATCH_PROJECT, POST as POST_PROJECT } from '../app/api/projects/route';
 import { DELETE as DELETE_TASK, GET as GET_TASKS, PATCH as PATCH_TASK, POST as POST_TASK } from '../app/api/tasks/route';
 import { POST as RUN_TASK } from '../app/api/tasks/run/route';
 import { storeFromEnv } from '../lib/server/avatarStore';
 import { projectStore } from '../lib/server/projectStore';
+import { resolveChildDirectory } from '../lib/server/projectPaths';
 import { withTaskService } from '../lib/server/taskService';
 
 vi.mock('../lib/server/avatarStore', () => ({
@@ -43,6 +44,14 @@ describe('/api/projects route actor contract', () => {
     storeFromEnvMock.mockResolvedValue(null);
   });
 
+  it('resolves one direct child folder and rejects path separators', () => {
+    const parent = join(tmpdir(), 'zleap-projects');
+    expect(resolveChildDirectory(parent, 'my-project')).toBe(join(parent, 'my-project'));
+    expect(() => resolveChildDirectory(parent, 'nested/project')).toThrow('invalid_folder_name');
+    expect(() => resolveChildDirectory(parent, '..')).toThrow('invalid_folder_name');
+    expect(() => resolveChildDirectory(parent, 'a\\b')).toThrow('invalid_folder_name');
+  });
+
   it('requires an actor before listing projects', async () => {
     const response = await GET_PROJECTS(new Request('http://localhost/api/projects'));
 
@@ -75,6 +84,61 @@ describe('/api/projects route actor contract', () => {
     expect(projectStoreMock.create).not.toHaveBeenCalled();
     expect(projectStoreMock.update).not.toHaveBeenCalled();
     expect(projectStoreMock.remove).not.toHaveBeenCalled();
+  });
+
+  it('requires an admin before creating a project folder', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'zleap-folder-auth-'));
+    try {
+      const anonymous = await CREATE_PROJECT_FOLDER(new Request('http://localhost/api/projects/browse', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ parent, name: 'demo' }),
+      }));
+      await expectStatus(anonymous, 401);
+
+      const user = await CREATE_PROJECT_FOLDER(actorRequest('/api/projects/browse', 'POST', { parent, name: 'demo' }));
+      await expectStatus(user, 403);
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+
+  it('creates exactly one direct child folder for an admin', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'zleap-folder-create-'));
+    try {
+      const response = await CREATE_PROJECT_FOLDER(adminRequest('/api/projects/browse', 'POST', {
+        parent,
+        name: 'demo',
+      }));
+      await expectStatus(response, 201);
+      const body = await response.json() as { path: string };
+      expect(body.path).toBe(join(parent, 'demo'));
+      const info = await stat(body.path);
+      expect(info.isDirectory()).toBe(true);
+
+      const duplicate = await CREATE_PROJECT_FOLDER(adminRequest('/api/projects/browse', 'POST', {
+        parent,
+        name: 'demo',
+      }));
+      await expectStatus(duplicate, 409);
+      await expect(duplicate.json()).resolves.toEqual({ error: 'folder_exists' });
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects invalid folder names before filesystem mutation', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'zleap-folder-invalid-'));
+    try {
+      const response = await CREATE_PROJECT_FOLDER(adminRequest('/api/projects/browse', 'POST', {
+        parent,
+        name: '../outside',
+      }));
+      await expectStatus(response, 400);
+      await expect(response.json()).resolves.toEqual({ error: 'invalid_folder_name' });
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
   });
 
   it('opens the skill folder preset from the configured Zleap skills root', async () => {
@@ -126,6 +190,48 @@ describe('/api/projects route actor contract', () => {
     const deleted = await DELETE_PROJECT(adminRequest('/api/projects', 'DELETE', { id: 'demo' }));
     await expectStatus(deleted, 200);
     expect(projectStoreMock.remove).toHaveBeenCalledWith('demo');
+  });
+
+  it('accepts non-HOME absolute paths for POST and PATCH', async () => {
+    const tmp = await mkdtemp(join(tmpdir(), 'zleap-nonhome-'));
+    try {
+      expect(tmp.startsWith(homedir())).toBe(false);
+
+      projectStoreMock.create.mockResolvedValue({
+        id: 'demo',
+        name: 'Demo',
+        path: tmp,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const created = await POST_PROJECT(adminRequest('/api/projects', 'POST', { id: 'demo', name: 'Demo', path: tmp }));
+      await expectStatus(created, 201);
+      expect(projectStoreMock.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'demo', path: tmp }));
+
+      projectStoreMock.update.mockResolvedValue({
+        id: 'demo',
+        name: 'Demo',
+        path: tmp,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      const patched = await PATCH_PROJECT(adminRequest('/api/projects', 'PATCH', { id: 'demo', path: tmp }));
+      await expectStatus(patched, 200);
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('exposes browse roots including the home directory', async () => {
+    const res = await BROWSE_PROJECTS(actorRequest('/api/projects/browse', 'GET'));
+    await expectStatus(res, 200);
+
+    const body = await res.json();
+    expect(Array.isArray(body.roots)).toBe(true);
+    expect(body.roots.length).toBeGreaterThan(0);
+    expect(body.roots.some((r: { name: string; path: string }) => r.path === homedir())).toBe(true);
   });
 
 });

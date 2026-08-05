@@ -16,6 +16,18 @@ import { run, runCapture, runQuiet, sleep } from './process.js';
 
 export type PostgresEnv = NodeJS.ProcessEnv;
 
+type CommandProbe = typeof runQuiet;
+
+export async function isDockerReady(
+  env: PostgresEnv,
+  probe: CommandProbe = runQuiet,
+): Promise<boolean> {
+  return (
+    (await probe('docker', ['compose', 'version'], { env })) &&
+    (await probe('docker', ['info'], { env }))
+  );
+}
+
 export async function ensurePostgres(env: PostgresEnv): Promise<void> {
   const configuredDatabaseUrl =
     env.ZLEAP_DATABASE_URL ?? env.DATABASE_URL ?? process.env.ZLEAP_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -48,7 +60,7 @@ export async function ensurePostgres(env: PostgresEnv): Promise<void> {
     return;
   }
 
-  if (await runQuiet('docker', ['compose', 'version'], { env })) {
+  if (await isDockerReady(env)) {
     const repoRoot = env.ZLEAP_REPO_ROOT ?? resolveRepoRoot();
     await run('docker', ['compose', 'up', '-d', 'postgres'], { env, cwd: repoRoot });
     await waitForPostgres({

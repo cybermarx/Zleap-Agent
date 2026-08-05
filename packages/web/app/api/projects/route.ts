@@ -62,7 +62,7 @@ export async function PATCH(req: Request): Promise<Response> {
     const emojiRaw = body.emoji;
     const project = await projectStore.update(body.id.trim(), {
       name: body.name?.trim(),
-      path: body.path?.trim(),
+      path: body.path?.trim() ? resolveBrowsePath(body.path.trim()) : undefined,
       note: body.note,
       spec: body.spec,
       ...(emojiRaw !== undefined

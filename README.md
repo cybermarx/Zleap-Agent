@@ -245,7 +245,21 @@ Zleap-Agent is under active development. Areas still moving quickly include:
 
 Feedback, issues, and focused contributions are welcome.
 
+## Community
+
+Join the Zleap community on Discord or WeChat to connect with maintainers and other users.
+
+<table align="center">
+  <tr>
+    <th>Discord</th>
+    <th>WeChat</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/discord-community-qr.jpg" alt="Zleap Discord community QR code" width="220" /></td>
+    <td align="center"><img src="./assets/wechat-community-qr.png" alt="Zleap WeChat community QR code" width="220" /></td>
+  </tr>
+</table>
+
 ## License
 
-The license has not been finalized for the preview release. Please do not assume
-production redistribution rights until a license file is published.
+Zleap-Agent is released under the [Apache License 2.0](./LICENSE).
