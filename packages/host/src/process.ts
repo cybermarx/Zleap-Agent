@@ -24,7 +24,7 @@ export function runCapture(command: string, args: string[], options: RunOptions 
       cwd: options.cwd,
       env: options.env ?? process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: options.shell ?? false,
+      shell: options.shell ?? process.platform === 'win32',
       windowsHide: true,
     });
     let stdout = '';
@@ -57,7 +57,7 @@ export function spawnDetached(
     cwd: options.cwd,
     env: options.env ?? process.env,
     stdio: options.stdio ?? 'inherit',
-    shell: options.shell ?? false,
+    shell: options.shell ?? process.platform === 'win32',
     detached: process.platform !== 'win32',
     windowsHide: true,
   });
@@ -88,7 +88,7 @@ function runProcess(command: string, args: string[], options: RunOptions & { std
       cwd: options.cwd,
       stdio: options.stdio,
       env: options.env ?? process.env,
-      shell: options.shell ?? false,
+      shell: options.shell ?? process.platform === 'win32',
       windowsHide: true,
     });
     child.once('exit', (code) => {
