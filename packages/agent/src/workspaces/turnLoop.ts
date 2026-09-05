@@ -80,11 +80,8 @@ export const LOOP_DISCIPLINE =
   TOOL_REASON_DISCIPLINE;
 
 const WORKSPACE_MODEL =
-  'Zleap works like an operating system. Main is the desktop: it talks to the user and opens workspace app windows. ' +
-  'A workspace is an app window with its own tools, context, permissions, records, and artifacts for one kind of work. ' +
-  'When you are inside a workspace, use this app window to finish the assigned work. ' +
-  'If another app window must continue the task, call switchWorkspace with space, task, and message; runtime switches directly to that workspace with your handoff context. ' +
-  'If the whole user goal is complete or failed, call finishTask with message and optional status.';
+  'Like an operating system: main is the desktop (talks to the user and opens app windows); a workspace is an app window with its own tools, context, permissions, and artifacts for one kind of work. '
+  'Inside a workspace, finish the assigned work. If another workspace must continue, call switchWorkspace with space, task, message. If the whole goal is complete or failed, call finishTask with message.';
 
 /**
  * Extra discipline for a WORK space. Frames the endgame:
@@ -93,15 +90,12 @@ const WORKSPACE_MODEL =
  * concludes on its own instead of returning a mid-task "next I'll…" fragment.
  */
 const DELIVER_DISCIPLINE =
-  'Your responsibility is to finish this workspace task completely in this run, not to hand back a partial attempt or only a plan. ' +
-  'Use the available tools to actually read local/context evidence, search project files, modify, run, or verify as needed; do not deliver a step list as the result. ' +
-  'Use switchWorkspace when another workspace still needs to continue the same user goal. ' +
-  'Use finishTask only when the whole user goal is complete or failed. ' +
-  'A child workspace is not finished until it calls switchWorkspace or finishTask. Natural-language text without one of these tools is incomplete, even after tools ran. ' +
-  'finishTask.message must be the final user-facing result or failure explanation. switchWorkspace.message must be the handoff note for the next workspace.';
+  'Finish this workspace task completely now, with a result, not a plan. Use the tools to gather evidence, search, modify, run, or verify. '
+  'Keep going with switchWorkspace when another workspace must continue the same goal; call finishTask only when the whole goal is complete or failed. '
+  'The workspace is not finished until it calls switchWorkspace or finishTask. finishTask.message is the final user-facing result; switchWorkspace.message is the handoff note for the next workspace.';
 
 const SCRIPT_HANDOFF_DISCIPLINE =
-  'This workspace cannot execute scripts or commands. For scripts, shell commands, Python/Node execution, or local file generation, switch to space=cli. If the current user task explicitly requires running code, shell commands, or local file generation that this space cannot do, finish the work this space can do, then call switchWorkspace with space=cli and a task that preserves the requested deliverable type exactly. Do not add conversions such as PPT to PDF unless the user explicitly requested that output.';
+  'This workspace cannot run scripts or commands. When the task needs shell, Python/Node execution, or local file generation, switch to space=cli; finish here only what this space can do, then call switchWorkspace with space=cli keeping the requested deliverable type. Do not add conversions (e.g. PPT to PDF) unless explicitly requested.';
 
 /**
  * Space-agnostic framing for a WORK space: the agent has just entered a room

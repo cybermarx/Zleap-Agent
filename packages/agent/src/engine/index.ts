@@ -165,7 +165,7 @@ const DREAM_EXTRACT_MAX_OUTPUT_TOKENS = 1_800;
 const COMPACT_KEEP_RECENT_TOKENS = 1_000;
 const COMPACT_MIN_RECENT_TOKENS = 500;
 const COMPACT_RECENT_CONTEXT_RATIO = 0.08;
-const WORKSPACE_SUMMARY_MAX_OUTPUT_TOKENS = 1_800;
+const WORKSPACE_SUMMARY_MAX_OUTPUT_TOKENS = 4_096;
 const COMPACT_TOOL_PATH_MAX_DEPTH = 4;
 const COMPACT_TOOL_PATH_MAX_CHARS = 240;
 
@@ -2732,6 +2732,27 @@ export class ChatEngine {
     return model.id;
   }
 
+  /**
+   * Resolve the external model (if any) bound to the given space for compaction
+   * summaries via `summary_model_config_id`. Registers it so `completeText` can
+   * address it, then returns its model id. Falls back to the current main model.
+   */
+  private async resolveSummaryModelId(spaceId: string): Promise<string | undefined> {
+    try {
+      const store = await this.getStore();
+      const space = await store?.spaces.getSpace(spaceId);
+      const version = space ? await store?.spaces.getSpaceVersion(space.id, space.currentVersion) : undefined;
+      const summaryModelConfigId = version?.summaryModelConfigId?.trim();
+      if (!summaryModelConfigId) {
+        return undefined;
+      }
+      const storeForModel = await this.getStore();
+      return storeForModel ? await this.registerModelForSpace(storeForModel, summaryModelConfigId) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private toRuntimeModelConfig(record: ModelConfigRecord): CustomModelConfig | undefined {
     if (record.providerId !== 'openai-compatible' && record.providerId !== 'anthropic') {
       return undefined;
@@ -3363,11 +3384,13 @@ export class ChatEngine {
         });
       }
       try {
+        const summaryModelId = await this.resolveSummaryModelId(input.spaceId);
         const summaryXml = await this.generateWorkspaceSummaryXml({
           spaceId: input.spaceId,
           previousSummaryXml,
           foldedMessages: foldedTurns,
           foldedEntryRefs,
+          modelId: summaryModelId,
         });
         const tail = input.messages.slice(foldEnd);
         const summaryIndex = currentMessageIndex - foldEnd;
@@ -3457,10 +3480,11 @@ export class ChatEngine {
     previousSummaryXml?: string;
     foldedMessages: Message[];
     foldedEntryRefs: Array<{ id: string; role?: string; createdAt?: string }>;
+    modelId?: string;
   }): Promise<string> {
     const raw = await completeText(
       this.registries,
-      this.modelId,
+      input.modelId ?? this.modelId,
       {
         systemPrompt: '',
         messages: buildWorkspaceSummaryMessages(input),
